@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project reviews positivas trustpilot</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">Project reviews positivas trustpilot</h1>
+
+        <!-- Tabla editable -->
+        <div class="overflow-x-auto">
+            <table id="metricsTable" class="table-auto w-full bg-white shadow-md rounded-lg">
+                <thead>
+                    <tr class="bg-gray-800 text-white">
+                        <th class="px-4 py-2">Fecha</th>
+                        <th class="px-4 py-2">Nº de emails enviados</th>
+                        <th class="px-4 py-2">% Open</th>
+                        <th class="px-4 py-2">% CTOR</th>
+                        <th class="px-4 py-2">Nº de reviews positivas</th>
+                        <th class="px-4 py-2">Total acumulado reviews</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Filas generadas dinámicamente con JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Botón para guardar -->
+        <div class="text-center my-4">
+            <button onclick="saveData()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                Guardar Datos
+            </button>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+            <div>
+                <canvas id="emailsOpenChart"></canvas>
+            </div>
+            <div>
+                <canvas id="ctorChart"></canvas>
+            </div>
+            <div>
+                <canvas id="reviewsChart"></canvas>
+            </div>
+            <div>
+                <canvas id="totalReviewsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script para manejar la tabla y gráficos -->
+    <script>
+        // Variables para guardar los datos
+        const tableData = [];
+        let totalReviews = 0;
+
+        // Inicialización de la tabla para Octubre desde el 16
+        const startDate = new Date(2024, 9, 16);
+        const tableBody = document.getElementById('tableBody');
+
+        // Cargar datos de localStorage
+        const savedData = JSON.parse(localStorage.getItem('metricsData')) || [];
+
+        for (let i = 0; i < 16; i++) {
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + i);
+            const formattedDate = currentDate.toISOString().split('T')[0];
+
+            const savedRow = savedData[i] || {
+                emailsSent: 0,
+                openRate: 0,
+                ctor: 0,
+                positiveReviews: 0,
+                totalReviews: 0
+            };
+
+            tableBody.innerHTML += `
+                <tr>
+                    <td class="border px-4 py-2">${formattedDate}</td>
+                    <td class="border px-4 py-2"><input type="number" class="w-full border-gray-300" value="${savedRow.emailsSent}"></td>
+                    <td class="border px-4 py-2"><input type="number" class="w-full border-gray-300" value="${savedRow.openRate}" step="0.01">%</td>
+                    <td class="border px-4 py-2"><input type="number" class="w-full border-gray-300" value="${savedRow.ctor}" step="0.01">%</td>
+                    <td class="border px-4 py-2"><input type="number" class="w-full border-gray-300" value="${savedRow.positiveReviews}"></td>
+                    <td class="border px-4 py-2"><input type="number" class="w-full border-gray-300" value="${savedRow.totalReviews}"></td>
+                </tr>
+            `;
+        }
+
+        // Función para guardar los datos
+        function saveData() {
+            const rows = document.querySelectorAll('#metricsTable tbody tr');
+
+            const dataToSave = [];
+
+            rows.forEach((row) => {
+                const inputs = row.querySelectorAll('input');
+                const emailsSent = parseInt(inputs[0].value) || 0;
+                const openRate = parseFloat(inputs[1].value) || 0;
+                const ctor = parseFloat(inputs[2].value) || 0;
+                const positiveReviews = parseInt(inputs[3].value) || 0;
+                const accumulatedReviews = parseInt(inputs[4].value) || 0;
+
+                dataToSave.push({ emailsSent, openRate, ctor, positiveReviews, totalReviews: accumulatedReviews });
+            });
+
+            // Guardar en localStorage
+            localStorage.setItem('metricsData', JSON.stringify(dataToSave));
+
+            // Actualizar gráficos
+            updateCharts(dataToSave);
+        }
+
+        // Inicialización de gráficos
+        let emailsOpenChart = null;
+        let ctorChart = null;
+        let reviewsChart = null;
+        let totalReviewsChart = null;
+
+        function updateCharts(data) {
+            const labels = data.map((_, i) => new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i).toISOString().split('T')[0]);
+            const emailsSentData = data.map(row => row.emailsSent);
+            const openRateData = data.map(row => row.openRate);
+            const ctorData = data.map(row => row.ctor);
+            const positiveReviewsData = data.map(row => row.positiveReviews);
+            const totalReviewsData = data.map(row => row.totalReviews);
+
+            if (emailsOpenChart) emailsOpenChart.destroy();
+            emailsOpenChart = new Chart(document.getElementById('emailsOpenChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Nº de emails enviados',
+                            data: emailsSentData,
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '% Open',
+                            data: openRateData,
+                            type: 'line',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            if (ctorChart) ctorChart.destroy();
+            ctorChart = new Chart(document.getElementById('ctorChart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: '% CTOR',
+                        data: ctorData,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        fill: false,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            if (reviewsChart) reviewsChart.destroy();
+            reviewsChart = new Chart(document.getElementById('reviewsChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Nº de reviews positivas',
+                        data: positiveReviewsData,
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            if (totalReviewsChart) totalReviewsChart.destroy();
+            totalReviewsChart = new Chart(document.getElementById('totalReviewsChart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Total acumulado reviews',
+                        data: totalReviewsData,
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        fill: false,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Actualizar gráficos al cargar la página si hay datos guardados
+        if (savedData.length > 0) {
+            updateCharts(savedData);
+        }
+    </script>
+</body>
+</html>
+
+
+
